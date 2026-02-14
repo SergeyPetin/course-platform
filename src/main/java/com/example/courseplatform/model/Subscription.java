@@ -1,12 +1,14 @@
 package com.example.courseplatform.model;
 
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 
+@Data
 @Entity
 @Table(name = "subscriptions")
-public class Subacription {
+public class Subscription {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -14,7 +16,7 @@ public class Subacription {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
-    private User student;
+    private User user;
 
     @ManyToOne
     @JoinColumn(name = "course_id", nullable = false)
@@ -27,5 +29,6 @@ public class Subacription {
     private LocalDateTime purchaseDate;
 
     private LocalDateTime expiresAt;
+    public Subscription() {}
 
 }

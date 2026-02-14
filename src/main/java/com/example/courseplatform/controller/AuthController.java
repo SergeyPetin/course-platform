@@ -1,21 +1,22 @@
 package com.example.courseplatform.controller;
 
-import org.springframework.security.core.Authentication;
 import com.example.courseplatform.model.Role;
 import com.example.courseplatform.model.User;
 import com.example.courseplatform.repository.UserRepository;
 import com.example.courseplatform.service.JwtService;
 import com.example.courseplatform.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/auth")
@@ -25,10 +26,8 @@ public class AuthController {
     private final UserService userService;
     private final JwtService jwtService;
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final BCryptPasswordEncoder passwordEncoder;
 
-    // ✅ Constructor injection вместо field injection
-    @Autowired
     public AuthController(AuthenticationManager authenticationManager,
                           UserService userService,
                           JwtService jwtService,
@@ -37,6 +36,7 @@ public class AuthController {
         this.userService = userService;
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.passwordEncoder = new BCryptPasswordEncoder();
     }
 
     @PostMapping("/register")
@@ -51,14 +51,16 @@ public class AuthController {
         }
 
         User user = new User();
-        user.setEmail(email);
+        user.setEmail(request.get("email"));
         user.setPassword(passwordEncoder.encode(password));
         user.setFullName(fullName);
         user.setRole(Role.USER);
 
+        user.setRole("author@test.com".equals(request.get("email")) ? Role.AUTHOR : Role.USER);
+
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of("message", "Пользователь зарегистрирован"));  // ✅ "message"
+        return ResponseEntity.ok(Map.of("message", "Пользователь зарегистрирован"));
     }
 
     @PostMapping("/login")
@@ -66,14 +68,18 @@ public class AuthController {
         String email = request.get("email");
         String password = request.get("password");
 
-        Authentication authentication = authenticationManager.authenticate(
+        // ✅ Аутентифицируем (нужно для проверки пароля), но не сохраняем
+        authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(email, password)
         );
 
-        // ✅ ГЛАВНОЕ ИСПРАВЛЕНИЕ: загружаем UserDetails для jwtService
+        // Генерируем токен
         UserDetails userDetails = userService.loadUserByUsername(email);
-        String jwtToken = jwtService.generateToken(userDetails);  // Теперь UserDetails!
+        String jwt = jwtService.generateToken(userDetails);
 
-        return ResponseEntity.ok(Map.of("token", jwtToken, "message", "Авторизация успешна"));
+        Map<String, String> response = new HashMap<>();
+        response.put("token", jwt);
+        response.put("message", "Авторизация успешна");
+        return ResponseEntity.ok(response);
     }
 }

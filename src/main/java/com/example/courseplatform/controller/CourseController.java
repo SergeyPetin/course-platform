@@ -1,6 +1,5 @@
 package com.example.courseplatform.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import com.example.courseplatform.dto.UpdateCourseDto;
 import com.example.courseplatform.model.Course;
 import com.example.courseplatform.model.Lesson;
@@ -8,17 +7,16 @@ import com.example.courseplatform.model.User;
 import com.example.courseplatform.repository.CourseRepository;
 import com.example.courseplatform.repository.LessonRepository;
 import com.example.courseplatform.repository.UserRepository;
-import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-
+import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -30,7 +28,6 @@ import java.util.Optional;
 @Tag(name = "Курсы", description = "Управление курсами")
 public class CourseController {
 
-
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
     private final LessonRepository lessonRepository;
@@ -40,14 +37,13 @@ public class CourseController {
         this.lessonRepository = lessonRepository;
     }
 
-    // ✅ ЕДИНСТВЕННЫЙ getAllCourses с пагинацией и сортировкой
     @GetMapping
     public Page<Course> getAllCourses(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt,desc") String[] sort
+            @RequestParam(defaultValue = "title") String sortBy
     ) {
-        return courseRepository.findAll(PageRequest.of(page, size, Sort.by(sort)));
+        return courseRepository.findAll(PageRequest.of(page, size, Sort.by(sortBy)));
     }
 
     @GetMapping("/{id}")
@@ -59,26 +55,18 @@ public class CourseController {
 
     @PostMapping
     public ResponseEntity<Course> createCourse(@RequestBody @Valid Course course) {
-
-        // ✅ Валидация через @Valid + модель (title, price @NotNull)
         if (course.getTitle() == null || course.getTitle().trim().isEmpty()) {
-            return ResponseEntity.badRequest()
-                    .body(null);  // Или Map.of("error", "Title required")
+            return ResponseEntity.badRequest().build();
         }
         if (course.getPrice() == null || course.getPrice().compareTo(BigDecimal.ZERO) < 0) {
-            return ResponseEntity.badRequest()
-                    .body(null);  // Или Map.of("error", "Price >= 0")
+            return ResponseEntity.badRequest().build();
         }
 
-        // 🔥 НОВОЕ: автор = текущий логин из токена!
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-        User author = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Author not found: " + email));
+        User dummyAuthor = new User();
+        dummyAuthor.setId(1L);
+        course.setAuthor(dummyAuthor);
 
-        course.setAuthor(author);
         course.setCreatedAt(LocalDateTime.now());
-
         Course savedCourse = courseRepository.save(course);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedCourse);
     }

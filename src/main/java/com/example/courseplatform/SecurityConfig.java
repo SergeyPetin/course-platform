@@ -51,7 +51,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/subscriptions/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/courses/**").permitAll()  // ← НОВОЕ!
+                        .requestMatchers("/courses/**").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .anyRequest().authenticated()
                 )

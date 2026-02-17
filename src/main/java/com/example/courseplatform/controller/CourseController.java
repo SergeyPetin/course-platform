@@ -1,5 +1,11 @@
 package com.example.courseplatform.controller;
 
+import java.util.Map;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.example.courseplatform.dto.UpdateCourseDto;
 import com.example.courseplatform.model.Course;
 import com.example.courseplatform.model.Lesson;
@@ -29,6 +35,9 @@ public class CourseController {
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
     private final LessonRepository lessonRepository;
+    private final Logger logger =
+            LoggerFactory.getLogger(CourseController.class);
+
     public CourseController(CourseRepository courseRepository, UserRepository userRepository, LessonRepository lessonRepository) {
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
@@ -177,6 +186,15 @@ public class CourseController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PostMapping("/subscriptions")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<String> createSubscription(@RequestBody Map<String, Object> data) {
+        logger.info("🛒 Покупка: courseId={}, userId={}", data.get("courseId"), data.get("userId"));
+        return ResponseEntity.ok("Покупка сохранена! Курс ID: " + data.get("courseId"));
+    }
+
+
 }
 
 

@@ -10,10 +10,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -51,12 +48,17 @@ public class AuthController {
         }
 
         User user = new User();
-        user.setEmail(request.get("email"));
+        user.setEmail(email);
         user.setPassword(passwordEncoder.encode(password));
         user.setFullName(fullName);
+
+        // по умолчанию USER
         user.setRole(Role.USER);
 
-        user.setRole("author@test.com".equals(request.get("email")) ? Role.AUTHOR : Role.USER);
+        // если хочешь спец-правила для конкретного email:
+        if ("author@test.com".equals(email)) {
+            user.setRole(Role.AUTHOR);
+        }
 
         userRepository.save(user);
 
@@ -68,18 +70,22 @@ public class AuthController {
         String email = request.get("email");
         String password = request.get("password");
 
-        // ✅ Аутентифицируем (нужно для проверки пароля), но не сохраняем
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(email, password)
         );
 
-        // Генерируем токен
         UserDetails userDetails = userService.loadUserByUsername(email);
-        String jwt = jwtService.generateToken(userDetails);
+
+        User user = userRepository.findByEmail(email).orElseThrow();
+        Map<String, Object> extraClaims = Map.of("role", user.getRole().name());
+
+        String jwt = jwtService.generateToken(extraClaims, userDetails);
 
         Map<String, String> response = new HashMap<>();
         response.put("token", jwt);
         response.put("message", "Авторизация успешна");
         return ResponseEntity.ok(response);
     }
+
 }
+

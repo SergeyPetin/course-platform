@@ -10,7 +10,10 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -86,6 +89,27 @@ public class AuthController {
         response.put("message", "Авторизация успешна");
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/users")
+    public ResponseEntity<Map<String, String>> registerUsers(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String password = request.get("password");
+        String fullName = email.split("@")[0] + " User";
+
+        if (userRepository.findByEmail(email).isPresent()) {
+            return ResponseEntity.ok(Map.of("message", "User exists"));
+        }
+
+        User user = new User();
+        user.setEmail(email);
+        user.setFullName(fullName);
+        user.setRole(Role.USER);
+        user.setPassword(passwordEncoder.encode(password));
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Registered"));
+    }
+
 
 }
 

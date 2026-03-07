@@ -21,7 +21,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.security.core.Authentication;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -194,7 +194,13 @@ public class CourseController {
         return ResponseEntity.ok("Покупка сохранена! Курс ID: " + data.get("courseId"));
     }
 
-
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Course>> getMyCourses(org.springframework.security.core.Authentication authentication) {
+        String email = authentication.getName();
+        List<Course> courses = courseRepository.findByAuthorEmail(email);
+        return ResponseEntity.ok(courses);
+    }
 }
 
 

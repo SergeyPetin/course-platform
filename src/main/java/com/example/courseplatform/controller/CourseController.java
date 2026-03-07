@@ -60,6 +60,7 @@ public class CourseController {
     }
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Course> createCourse(@RequestBody @Valid Course course) {
         if (course.getTitle() == null || course.getTitle().trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
@@ -68,14 +69,18 @@ public class CourseController {
             return ResponseEntity.badRequest().build();
         }
 
-        User dummyAuthor = new User();
-        dummyAuthor.setId(1L);
-        course.setAuthor(dummyAuthor);
+        // Автор из JWT
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Optional<User> authorOpt = userRepository.findByEmail(email);
+        if (authorOpt.isPresent()) {
+            course.setAuthor(authorOpt.get());
+        }
 
         course.setCreatedAt(LocalDateTime.now());
         Course savedCourse = courseRepository.save(course);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedCourse);
     }
+
 
 
     @PutMapping("/{id}")

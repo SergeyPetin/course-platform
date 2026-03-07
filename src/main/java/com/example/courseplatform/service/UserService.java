@@ -24,7 +24,9 @@ public class UserService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        System.out.println("🔍 DEBUG loadUserByUsername: " + email);
         Optional<User> userOpt = userRepository.findByEmail(email);
+        System.out.println("🔍 DEBUG User found: " + userOpt.isPresent() + " " + userOpt.map(User::getEmail).orElse("NULL"));
 
         User user = userOpt.orElseThrow(() ->
                 new UsernameNotFoundException("Пользователь с email:" + email + " не найден"));
@@ -34,6 +36,7 @@ public class UserService implements UserDetailsService {
                 .authorities("ROLE_" + user.getRole().name())
                 .build();
     }
+
 
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);

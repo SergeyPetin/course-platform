@@ -55,14 +55,17 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(authz -> authz
-                        .anyRequest().permitAll()  // 🔥 ВСЁ ОТКРЫТО!
+                        .requestMatchers("/auth/**").permitAll()    // ← ДОБАВЬ!
+                        .requestMatchers("/courses/**").permitAll() // ← ДОБАВЬ!
+                        .anyRequest().authenticated()               // ← ИЗМЕНИ!
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // 🔥 JWT ФИЛЬТР УБРАЛИ!
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)  // ← ДОБАВЬ!
                 .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()));
 
         return http.build();
     }
+
 
 
     @Bean

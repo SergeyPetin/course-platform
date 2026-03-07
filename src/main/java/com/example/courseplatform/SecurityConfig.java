@@ -51,22 +51,15 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
+        http.csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/auth/**").permitAll()    // ← ДОБАВЬ!
-                        .requestMatchers("/courses/**").permitAll() // ← ДОБАВЬ!
-                        .anyRequest().authenticated()               // ← ИЗМЕНИ!
+                        .anyRequest().permitAll()  // ← ВСЁ ОТКРЫТО временно!
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)  // ← ДОБАВЬ!
                 .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()));
-
         return http.build();
     }
-
-
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {

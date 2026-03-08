@@ -24,19 +24,20 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final UserService userService;
+    private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final UserRepository userRepository;
-    private PasswordEncoder passwordEncoder;
 
     public AuthController(AuthenticationManager authenticationManager,
                           UserService userService,
+                          PasswordEncoder passwordEncoder,
                           JwtService jwtService,
                           UserRepository userRepository) {
         this.authenticationManager = authenticationManager;
         this.userService = userService;
+        this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/register")
@@ -109,7 +110,5 @@ public class AuthController {
 
         return ResponseEntity.ok(Map.of("message", "Registered"));
     }
-
-
 }
 

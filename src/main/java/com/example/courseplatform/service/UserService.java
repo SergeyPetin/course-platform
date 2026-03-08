@@ -25,8 +25,13 @@ public class UserService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        System.out.println("🔍 DEBUG loadUserByUsername: " + email);  // Твои логи
         Optional<User> userOpt = userRepository.findByEmail(email);
-        User user = userOpt.orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        System.out.println("🔍 DEBUG User found: " + userOpt.isPresent() + " " +
+                userOpt.map(User::getEmail).orElse("NULL"));
+
+        User user = userOpt.orElseThrow(() ->
+                new UsernameNotFoundException("Пользователь с email: " + email + " не найден"));
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
@@ -43,4 +48,3 @@ public class UserService implements UserDetailsService {
         userRepository.save(user);
     }
 }
-

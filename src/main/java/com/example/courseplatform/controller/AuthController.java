@@ -6,14 +6,8 @@ import com.example.courseplatform.repository.UserRepository;
 import com.example.courseplatform.service.JwtService;
 import com.example.courseplatform.service.UserService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,22 +16,18 @@ import java.util.Map;
 @RequestMapping("/auth")
 public class AuthController {
 
-    private final AuthenticationManager authenticationManager;
     private final UserService userService;
-    private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final BCryptPasswordEncoder passwordEncoder;
 
-    public AuthController(AuthenticationManager authenticationManager,
-                          UserService userService,
-                          PasswordEncoder passwordEncoder,
+    public AuthController(UserService userService,
                           JwtService jwtService,
                           UserRepository userRepository) {
-        this.authenticationManager = authenticationManager;
         this.userService = userService;
-        this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.passwordEncoder = new BCryptPasswordEncoder();
     }
 
     @PostMapping("/register")
@@ -56,10 +46,7 @@ public class AuthController {
         user.setPassword(passwordEncoder.encode(password));
         user.setFullName(fullName);
 
-        // по умолчанию USER
         user.setRole(Role.USER);
-
-        // если хочешь спец-правила для конкретного email:
         if ("author@test.com".equals(email)) {
             user.setRole(Role.AUTHOR);
         }
@@ -74,16 +61,17 @@ public class AuthController {
         String email = request.get("email");
         String password = request.get("password");
 
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, password)
+        User user = userRepository.findByEmail(email).orElseThrow(
+                () -> new RuntimeException("Пользователь не найден")
         );
 
-        UserDetails userDetails = userService.loadUserByUsername(email);
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Неверный пароль"));
+        }
 
-        User user = userRepository.findByEmail(email).orElseThrow();
         Map<String, Object> extraClaims = Map.of("role", user.getRole().name());
-
-        String jwt = jwtService.generateToken(extraClaims, userDetails);
+        String jwt = jwtService.generateToken(extraClaims, userService.loadUserByUsername(email));
 
         Map<String, String> response = new HashMap<>();
         response.put("token", jwt);

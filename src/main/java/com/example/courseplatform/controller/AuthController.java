@@ -1,5 +1,9 @@
 package com.example.courseplatform.controller;
 
+import com.example.courseplatform.dto.LoginRequest;
+import com.example.courseplatform.dto.LoginResponse;
+import com.example.courseplatform.dto.RegisterRequest;
+import jakarta.validation.Valid;
 import com.example.courseplatform.model.Role;
 import com.example.courseplatform.model.User;
 import com.example.courseplatform.repository.UserRepository;
@@ -31,51 +35,48 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<Map<String, String>> register(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        String password = request.get("password");
-        String fullName = request.get("fullName");
-
-        if (userRepository.findByEmail(email).isPresent()) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Пользователь с таким email уже существует"));
+    public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request) {
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("Пользователь с таким email уже существует");
         }
 
         User user = new User();
-        user.setEmail(email);
-        user.setPassword(passwordEncoder.encode(password));
-        user.setFullName(fullName);
+        user.setEmail(request.getEmail());
+        user.setFullName(request.getFullName());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         user.setRole(Role.USER);
-        if ("author@test.com".equals(email)) {
+        if ("author@test.com".equals(request.getEmail())) {
             user.setRole(Role.AUTHOR);
         }
 
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of("message", "Пользователь зарегистрирован"));
+        // Автологин
+        String token = userService.authenticate(request.getEmail(), request.getPassword());
+
+        LoginResponse response = new LoginResponse();
+        response.setToken(token);
+        response.setUserId(user.getId());
+        response.setEmail(user.getEmail());
+        response.setRole(user.getRole().name());
+
+        return ResponseEntity.ok(response);
     }
 
+
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> login(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        String password = request.get("password");
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        String token = userService.authenticate(request.getEmail(), request.getPassword());
 
-        User user = userRepository.findByEmail(email).orElseThrow(
-                () -> new RuntimeException("Пользователь не найден")
-        );
+        User user = userService.findByEmail(request.getEmail());
 
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Неверный пароль"));
-        }
+        LoginResponse response = new LoginResponse();
+        response.setToken(token);
+        response.setUserId(user.getId());
+        response.setEmail(user.getEmail());
+        response.setRole(user.getRole().name());
 
-        Map<String, Object> extraClaims = Map.of("role", user.getRole().name());
-        String jwt = jwtService.generateToken(extraClaims, userService.loadUserByUsername(email));
-
-        Map<String, String> response = new HashMap<>();
-        response.put("token", jwt);
-        response.put("message", "Авторизация успешна");
         return ResponseEntity.ok(response);
     }
 

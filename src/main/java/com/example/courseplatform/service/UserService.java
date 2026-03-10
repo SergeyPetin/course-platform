@@ -16,15 +16,12 @@ public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
 
     @Autowired
     public UserService(UserRepository userRepository,
-                       PasswordEncoder passwordEncoder,
-                       JwtService jwtService) {
+                       PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.jwtService = jwtService;
     }
 
     @Override
@@ -42,16 +39,6 @@ public class UserService implements UserDetailsService {
 
     public void saveUser(User user) {
         userRepository.save(user);
-    }
-
-    public String authenticate(String email, String password) {
-        User user = findByEmail(email);
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Неверный пароль");
-        }
-
-        Map<String, Object> extraClaims = Map.of("role", user.getRole().name());
-        return jwtService.generateToken(extraClaims, loadUserByUsername(email));
     }
 
     public User findByEmail(String email) {

@@ -71,12 +71,17 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         User user = userService.findByEmail(request.getEmail());
 
+        if (user == null) {
+            throw new RuntimeException("Пользователь не найден");
+        }
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new RuntimeException("Неверный пароль");
         }
 
+        // Автологин
         Map<String, Object> extraClaims = Map.of("role", user.getRole().name());
-        String token = jwtService.generateToken(extraClaims, userService.loadUserByUsername(request.getEmail()));
+        String token = jwtService.generateToken(extraClaims, userService.loadUserByUsername(user.getEmail()));
 
         LoginResponse response = new LoginResponse();
         response.setToken(token);
@@ -86,6 +91,7 @@ public class AuthController {
 
         return ResponseEntity.ok(response);
     }
+
 
     @PostMapping("/users")
     public ResponseEntity<Map<String, String>> registerUsers(@RequestBody Map<String, String> request) {

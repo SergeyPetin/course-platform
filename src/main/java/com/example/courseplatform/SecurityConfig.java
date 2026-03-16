@@ -66,8 +66,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of(
-                "https://endearing-alignment-production.up.railway.app",
-                "http://localhost:5173"
+                "https://front-production-c924.up.railway.app",
+                "https://bek-production-15ec.up.railway.app",
+                "http://localhost:5173",
+                "https://endearing-alignment-production.up.railway.app"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
@@ -77,4 +79,5 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", config);
         return source;
     }
+
 }

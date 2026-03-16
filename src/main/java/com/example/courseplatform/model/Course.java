@@ -32,6 +32,9 @@ public class Course {
     @Column
     private String previewVideoUrl;
 
+    @Column
+    private String coverImageUrl;
+
     @NotNull(message = "Цена обязательна")
     @DecimalMin(value = "0.0", message = "Цена не может быть отрицательной")
     @Column(nullable = false)

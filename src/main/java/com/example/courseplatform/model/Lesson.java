@@ -21,8 +21,11 @@ public class Lesson {
     @Column(nullable = false)
     private String title;
 
-    @Column(nullable = false)
+    @Column
     private String videoUrl;
+
+    @Column
+    private String previewImageUrl;
 
     @Column(nullable = false)
     private Integer orderNumber;

@@ -54,7 +54,6 @@ public class AuthController {
 
         userRepository.save(user);
 
-        // Автологин
         Map<String, Object> extraClaims = Map.of("role", user.getRole().name());
         String token = jwtService.generateToken(extraClaims, userService.loadUserByUsername(request.getEmail()));
         LoginResponse response = new LoginResponse();

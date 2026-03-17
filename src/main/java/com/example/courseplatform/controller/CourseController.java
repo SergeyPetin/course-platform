@@ -84,34 +84,31 @@ public class CourseController {
 
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateCourse(
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Course> updateCourse(
             @PathVariable Long id,
             @RequestBody UpdateCourseDto updatedCourse
     ) {
         return courseRepository.findById(id)
                 .map(existingCourse -> {
-                    if (updatedCourse.getTitle() != null && !updatedCourse.getTitle().trim().isEmpty())
+                    // ✅ Обновляем ВСЕ поля (null тоже!)
+                    if (updatedCourse.getTitle() != null) {
                         existingCourse.setTitle(updatedCourse.getTitle().trim());
-
-                    if (updatedCourse.getDescription() != null && !updatedCourse.getDescription().trim().isEmpty())
+                    }
+                    if (updatedCourse.getDescription() != null) {
                         existingCourse.setDescription(updatedCourse.getDescription().trim());
-
-                    if (updatedCourse.getPrice() != null) {
-                        if (updatedCourse.getPrice().compareTo(BigDecimal.ZERO) < 0) {
-                            return ResponseEntity.badRequest().body("Цена не может быть отрицательной");
-                        }
+                    }
+                    if (updatedCourse.getPrice() != null && updatedCourse.getPrice().compareTo(BigDecimal.ZERO) >= 0) {
                         existingCourse.setPrice(updatedCourse.getPrice());
                     }
 
-                    if (updatedCourse.getAuthor() != null && updatedCourse.getAuthor().getId() != null) {
-                        userRepository.findById(updatedCourse.getAuthor().getId())
-                                .ifPresent(existingCourse::setAuthor);
-                    }
+                    existingCourse.setCoverImageUrl(updatedCourse.getCoverImageUrl());
+                    existingCourse.setPreviewVideoUrl(updatedCourse.getPreviewVideoUrl());
 
                     Course savedCourse = courseRepository.save(existingCourse);
-                    return ResponseEntity.ok(savedCourse);
+                    return ResponseEntity.ok(savedCourse);  // ← Method reference!
                 })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
@@ -123,7 +120,6 @@ public class CourseController {
         return ResponseEntity.notFound().build();
     }
 
-    // ✅ Lessons CRUD
     @PostMapping("/{courseId}/lessons")
     public ResponseEntity<Lesson> createLesson(
             @PathVariable Long courseId,

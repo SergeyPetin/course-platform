@@ -14,5 +14,6 @@ public class UpdateCourseDto {
     @DecimalMin(value = "0.0", inclusive = true, message = "Цена должна быть 0 или больше")
     private BigDecimal price;
     private User author;
-
+    private String coverImageUrl;
+    private String previewVideoUrl;
 }

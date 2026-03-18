@@ -1,4 +1,6 @@
 package com.example.courseplatform.controller;
+import org.springframework.security.core.Authentication;
+import java.util.Map;
 
 import com.example.courseplatform.dto.UpdateCourseDto;
 import com.example.courseplatform.model.Course;
@@ -9,6 +11,9 @@ import com.example.courseplatform.repository.LessonRepository;
 import com.example.courseplatform.repository.UserRepository;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+
+import org.springframework.http.HttpStatus;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -121,17 +126,26 @@ public class CourseController {
     }
 
     @PostMapping("/{courseId}/lessons")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Lesson> createLesson(
             @PathVariable Long courseId,
-            @RequestBody Lesson lesson
-    ) {
+            @RequestBody Map<String, String> lessonData,
+            Authentication auth) {  // ← Теперь импортирован!
+
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+
         return courseRepository.findById(courseId)
+                .filter(course -> course.getAuthor() != null && course.getAuthor().getEmail().equals(userEmail))
                 .map(course -> {
+                    Lesson lesson = new Lesson();
+                    lesson.setTitle(lessonData.get("title"));
+                    lesson.setVideoUrl(lessonData.get("videoUrl"));
                     lesson.setCourse(course);
-                    return ResponseEntity.status(HttpStatus.CREATED)
-                            .body(lessonRepository.save(lesson));
+
+                    Lesson saved = lessonRepository.save(lesson);
+                    return ResponseEntity.ok(saved);
                 })
-                .orElse(ResponseEntity.notFound().build());
+                .orElse(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
     }
 
     @GetMapping("/{courseId}/lessons")

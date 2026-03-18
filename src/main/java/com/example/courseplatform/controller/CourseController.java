@@ -17,7 +17,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
+
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -131,23 +131,38 @@ public class CourseController {
                 .getAuthentication()
                 .getName();
 
-        return courseRepository.findById(courseId)
-                .filter(course -> {
+        logger.info("🔍 CREATE LESSON: courseId={}, userEmail={}", courseId, currentUserEmail);
 
-                    return course.getAuthor() != null
-                            && course.getAuthor().getEmail() != null
-                            && course.getAuthor().getEmail().equals(currentUserEmail);
-                })
-                .map(course -> {
-                    Lesson lesson = new Lesson();
-                    lesson.setTitle(lessonData.get("title"));
-                    lesson.setVideoUrl(lessonData.get("videoUrl"));
-                    lesson.setCourse(course);
+        Optional<Course> courseOpt = courseRepository.findById(courseId);
+        if (courseOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
 
-                    Lesson saved = lessonRepository.save(lesson);
-                    return ResponseEntity.status(HttpStatus.CREATED).body(saved);
-                })
-                .orElse(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
+        Course course = courseOpt.get();
+
+        // ✅ Проверка автора
+        if (course.getAuthor() == null || course.getAuthor().getEmail() == null) {
+            logger.warn("🚫 NO AUTHOR: courseId={}", courseId);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        if (!course.getAuthor().getEmail().equals(currentUserEmail)) {
+            logger.warn("🚫 ACCESS DENIED: user={} != author={}",
+                    currentUserEmail, course.getAuthor().getEmail());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        // ✅ Создаем урок
+        Lesson lesson = new Lesson();
+        lesson.setTitle(lessonData.get("title"));
+        lesson.setVideoUrl(lessonData.get("videoUrl"));
+        lesson.setCourse(course);
+        lesson.setOrderNumber((int) (lessonRepository.count() + 1));
+
+        Lesson saved = lessonRepository.save(lesson);
+        logger.info("✅ LESSON CREATED: lessonId={}, order={}", saved.getId(), saved.getOrderNumber());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     @GetMapping("/{courseId}/lessons")

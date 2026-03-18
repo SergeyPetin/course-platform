@@ -1,6 +1,4 @@
 package com.example.courseplatform.controller;
-import org.springframework.security.core.Authentication;
-import java.util.Map;
 
 import com.example.courseplatform.dto.UpdateCourseDto;
 import com.example.courseplatform.model.Course;
@@ -11,9 +9,6 @@ import com.example.courseplatform.repository.LessonRepository;
 import com.example.courseplatform.repository.UserRepository;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-
-import org.springframework.http.HttpStatus;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -22,6 +17,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -87,7 +83,6 @@ public class CourseController {
     }
 
 
-
     @PutMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Course> updateCourse(
@@ -129,13 +124,20 @@ public class CourseController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Lesson> createLesson(
             @PathVariable Long courseId,
-            @RequestBody Map<String, String> lessonData,
-            Authentication auth) {  // ← Теперь импортирован!
+            @RequestBody Map<String, String> lessonData) {
 
-        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        String currentUserEmail = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
 
         return courseRepository.findById(courseId)
-                .filter(course -> course.getAuthor() != null && course.getAuthor().getEmail().equals(userEmail))
+                .filter(course -> {
+
+                    return course.getAuthor() != null
+                            && course.getAuthor().getEmail() != null
+                            && course.getAuthor().getEmail().equals(currentUserEmail);
+                })
                 .map(course -> {
                     Lesson lesson = new Lesson();
                     lesson.setTitle(lessonData.get("title"));
@@ -143,7 +145,7 @@ public class CourseController {
                     lesson.setCourse(course);
 
                     Lesson saved = lessonRepository.save(lesson);
-                    return ResponseEntity.ok(saved);
+                    return ResponseEntity.status(HttpStatus.CREATED).body(saved);
                 })
                 .orElse(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
     }

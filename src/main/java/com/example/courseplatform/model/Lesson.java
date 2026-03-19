@@ -22,7 +22,7 @@ public class Lesson {
     private String title;
 
     @Column
-    private String videoUrl;
+    private String videoId;
 
     @Column
     private String previewImageUrl;

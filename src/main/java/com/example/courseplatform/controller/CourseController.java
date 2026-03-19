@@ -155,7 +155,7 @@ public class CourseController {
         // ✅ Создаем урок
         Lesson lesson = new Lesson();
         lesson.setTitle(lessonData.get("title"));
-        lesson.setVideoUrl(lessonData.get("videoId"));
+        lesson.setVideoId(lessonData.get("videoId"));
         lesson.setCourse(course);
         lesson.setOrderNumber((int) (lessonRepository.count() + 1));
 
@@ -181,7 +181,7 @@ public class CourseController {
                 .filter(lesson -> lesson.getCourse().getId().equals(courseId))
                 .map(lesson -> {
                     if (updatedLesson.getTitle() != null) lesson.setTitle(updatedLesson.getTitle());
-                    if (updatedLesson.getVideoUrl() != null) lesson.setVideoUrl(updatedLesson.getVideoUrl());
+                    if (updatedLesson.getVideoId() != null) lesson.setVideoId(updatedLesson.getVideoId());
                     if (updatedLesson.getOrderNumber() != null) lesson.setOrderNumber(updatedLesson.getOrderNumber());
                     if (updatedLesson.getDurationMinutes() > 0)
                         lesson.setDurationMinutes(updatedLesson.getDurationMinutes());

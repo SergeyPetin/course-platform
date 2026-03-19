@@ -155,7 +155,7 @@ public class CourseController {
         // ✅ Создаем урок
         Lesson lesson = new Lesson();
         lesson.setTitle(lessonData.get("title"));
-        lesson.setVideoUrl(lessonData.get("videoUrl"));
+        lesson.setVideoUrl(lessonData.get("videoId"));
         lesson.setCourse(course);
         lesson.setOrderNumber((int) (lessonRepository.count() + 1));
 

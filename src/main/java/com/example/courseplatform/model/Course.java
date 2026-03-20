@@ -1,6 +1,6 @@
 package com.example.courseplatform.model;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -47,8 +47,8 @@ public class Course {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    @JsonManagedReference
+    // ВАЖНО: не сериализуем lessons в JSON, чтобы не будить LAZY
+    @JsonIgnore
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Lesson> lessons = new ArrayList<>();
-
 }

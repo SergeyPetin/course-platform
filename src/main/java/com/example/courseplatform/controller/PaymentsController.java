@@ -77,7 +77,7 @@ public class PaymentsController {
 
             SessionCreateParams.LineItem.PriceData priceData =
                     SessionCreateParams.LineItem.PriceData.builder()
-                            .setCurrency("usd")
+                            .setCurrency("rub")
                             .setUnitAmount(amountInCents)
                             .setProductData(productData)
                             .build();

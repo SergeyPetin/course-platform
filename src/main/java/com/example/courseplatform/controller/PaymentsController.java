@@ -108,21 +108,21 @@ public class PaymentsController {
         }
     }
 
-    // 2) Webhook от Stripe
+    // 2) Webhook от Stripe ★★★ ЛОГИ ★★★
     @PostMapping("/stripe-webhook")
     public ResponseEntity<String> handleStripeWebhook(
             @RequestBody String payload,
             @RequestHeader("Stripe-Signature") String sigHeader
     ) {
+        System.out.println("🔥 WEBHOOK ПОЛУЧЕН! Payload: " + payload.substring(0, 200));
+
         try {
-            // Проверяем подпись Stripe
-            Event event = Webhook.constructEvent(
-                    payload,
-                    sigHeader,
-                    stripeWebhookSecret
-            );
+            Event event = Webhook.constructEvent(payload, sigHeader, stripeWebhookSecret);
+            System.out.println("✅ Event type: " + event.getType());
 
             if ("checkout.session.completed".equals(event.getType())) {
+                System.out.println("🎯 checkout.session.completed!");
+
                 EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
 
                 if (deserializer.getObject().isPresent()
@@ -133,18 +133,24 @@ public class PaymentsController {
                     String courseIdStr = session.getMetadata().get("courseId");
                     String userEmail = session.getMetadata().get("userEmail");
 
+                    System.out.println("📦 Metadata: courseId=" + courseIdStr + ", userEmail=" + userEmail);
+
                     if (courseIdStr != null && userEmail != null) {
                         Long courseId = Long.valueOf(courseIdStr);
 
                         User user = userRepository.findByEmail(userEmail)
                                 .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+                        System.out.println("👤 Пользователь найден: " + user.getEmail());
 
                         Course course = courseRepository.findById(courseId)
                                 .orElseThrow(() -> new RuntimeException("Курс не найден"));
+                        System.out.println("📚 Курс найден: " + course.getTitle());
 
                         // Создаём подписку, если её ещё нет
                         boolean exists = subscriptionRepository
                                 .existsByUserAndCourseId(user, courseId);
+
+                        System.out.println("🔍 Подписка существует: " + exists);
 
                         if (!exists) {
                             Subscription sub = new Subscription();
@@ -153,14 +159,24 @@ public class PaymentsController {
                             sub.setStatus("ACTIVE");
                             sub.setPurchaseDate(LocalDateTime.now());
                             subscriptionRepository.save(sub);
+                            System.out.println("✅ Subscription СОЗДАНА и СОХРАНЕНА!");
+                        } else {
+                            System.out.println("⚠️ Subscription уже существует");
                         }
+                    } else {
+                        System.out.println("❌ Metadata пустые: courseId=" + courseIdStr + ", userEmail=" + userEmail);
                     }
+                } else {
+                    System.out.println("❌ Не Session объект");
                 }
             }
 
+            System.out.println("🏁 WEBHOOK УСПЕШНО ОБРАБОТАН");
             return ResponseEntity.ok("OK");
+
         } catch (Exception e) {
-            // В лог — а Stripe вернём 400, чтобы он при желании повторил запрос
+            System.out.println("💥 WEBHOOK ОШИБКА: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(400).body("Webhook error: " + e.getMessage());
         }
     }

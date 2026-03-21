@@ -37,6 +37,7 @@ public class SecurityConfig {
                         // Публичные эндпоинты:
                         .requestMatchers(
                                 "/health",
+                                "/payments/stripe-webhook",
                                 "/auth/login",
                                 "/auth/register",
                                 "/auth/**",

@@ -123,7 +123,7 @@ public class PaymentsController {
             @RequestHeader("Stripe-Signature") String sigHeader
     ) {
         try {
-            // ★ RAW BODY — ключ к успеху!
+            // ★ RAW BODY
             String payload;
             try (InputStream is = request.getInputStream()) {
                 payload = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -131,23 +131,24 @@ public class PaymentsController {
 
             System.out.println("🚨 WEBHOOK RAW: " + payload.substring(0, 400));
 
-            // ★ ТВОЙ STRIPE_WEBHOOK_SECRET из Railway
+            // ★ STRIPE_WEBHOOK_SECRET из Railway
             String webhookSecret = System.getenv("STRIPE_WEBHOOK_SECRET");
             System.out.println("🔑 Secret loaded: " + (webhookSecret != null ? "YES" : "NO"));
 
-            // ★ ПРОВЕРЯЕМ SIGNATURE
+            // ★ ПРОВЕРКА SIGNATURE
             Event event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
             System.out.println("✅ Signature OK! Event: " + event.getType());
 
             if ("checkout.session.completed".equals(event.getType())) {
-                Session session = event.getDataObjectDeserializer()
-                        .getObject()
-                        .map(s -> (Session) s)
-                        .orElse(null);
+                System.out.println("🎯 checkout.session.completed!");
 
-                if (session != null) {
-                    String courseId = session.getMetadata().get("courseId");
-                    String userEmail = session.getMetadata().get("userEmail");
+                try {
+                    ObjectMapper mapper = new ObjectMapper();
+                    JsonNode root = mapper.readTree(payload);
+                    JsonNode metadata = root.path("data").path("object").path("metadata");
+
+                    String courseId = metadata.path("courseId").asText(null);
+                    String userEmail = metadata.path("userEmail").asText(null);
 
                     System.out.println("📦 courseId='" + courseId + "'");
                     System.out.println("👤 userEmail='" + userEmail + "'");
@@ -161,15 +162,26 @@ public class PaymentsController {
                         System.out.println("🔍 Course found: " + (course != null));
 
                         if (user != null && course != null) {
-                            Subscription sub = new Subscription();
-                            sub.setUser(user);
-                            sub.setCourse(course);
-                            sub.setStatus("ACTIVE");
-                            sub.setPurchaseDate(LocalDateTime.now());
-                            subscriptionRepository.saveAndFlush(sub);
-                            System.out.println("✅✅✅ ПОДПИСКА СОЗДАНА! ID=" + sub.getId());
+                            if (!subscriptionRepository.existsByUserAndCourseId(user, cid)) {
+                                Subscription sub = new Subscription();
+                                sub.setUser(user);
+                                sub.setCourse(course);
+                                sub.setStatus("ACTIVE");
+                                sub.setPurchaseDate(LocalDateTime.now());
+                                subscriptionRepository.saveAndFlush(sub);
+                                System.out.println("✅✅✅ ПОДПИСКА СОЗДАНА! ID=" + sub.getId());
+                            } else {
+                                System.out.println("⚠️ Подписка уже есть");
+                            }
+                        } else {
+                            System.out.println("❌ User или Course не найдены");
                         }
+                    } else {
+                        System.out.println("❌ Metadata пустые: courseId=" + courseId + ", userEmail=" + userEmail);
                     }
+                } catch (Exception ex) {
+                    System.out.println("💥 ERROR INSIDE checkout.session.completed: " + ex.getMessage());
+                    ex.printStackTrace();
                 }
             }
 
@@ -179,9 +191,10 @@ public class PaymentsController {
             System.out.println("💥 SIGNATURE FAILED!");
             return ResponseEntity.status(400).body("Signature failed");
         } catch (Exception e) {
-            System.out.println("💥 ERROR: " + e.getMessage());
+            System.out.println("💥 GENERAL ERROR: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.ok("OK");
         }
     }
+
 }

@@ -162,17 +162,14 @@ public class PaymentsController {
                         System.out.println("🔍 Course found: " + (course != null));
 
                         if (user != null && course != null) {
-                            if (!subscriptionRepository.existsByUserAndCourseId(user, cid)) {
-                                Subscription sub = new Subscription();
-                                sub.setUser(user);
-                                sub.setCourse(course);
-                                sub.setStatus("ACTIVE");
-                                sub.setPurchaseDate(LocalDateTime.now());
-                                subscriptionRepository.saveAndFlush(sub);
-                                System.out.println("✅✅✅ ПОДПИСКА СОЗДАНА! ID=" + sub.getId());
-                            } else {
-                                System.out.println("⚠️ Подписка уже есть");
-                            }
+                            Subscription sub = new Subscription();
+                            sub.setUser(user);
+                            sub.setCourse(course);
+                            sub.setStatus("ACTIVE");
+                            sub.setPurchaseDate(LocalDateTime.now());
+
+                            subscriptionRepository.saveAndFlush(sub);
+                            System.out.println("✅✅✅ ПОДПИСКА СОЗДАНА! ID=" + sub.getId());
                         } else {
                             System.out.println("❌ User или Course не найдены");
                         }

@@ -9,12 +9,22 @@ import com.example.courseplatform.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stripe.Stripe;
+import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import com.stripe.model.Event;
+
+import com.stripe.exception.SignatureVerificationException;
+import com.stripe.net.Webhook;
+
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -107,65 +117,71 @@ public class PaymentsController {
         }
     }
 
-    @PostMapping("/stripe-webhook")
+    @PostMapping(value = "/stripe-webhook", consumes = "application/json")
     public ResponseEntity<String> handleStripeWebhook(
-            @RequestBody String payload,
-            @RequestHeader("Stripe-Signature") String sigHeader) {
-
-        System.out.println("🚨🔥 WEBHOOK ПОЛУЧЕН! 🔥🚨");
-        System.out.println("📄 Payload: " + payload.substring(0, 500));
-
+            HttpServletRequest request,
+            @RequestHeader("Stripe-Signature") String sigHeader
+    ) {
         try {
-            // ★ ПРЯМАЯ JSON РАЗБОРКА (100% работает)
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(payload);
+            // ★ RAW BODY — ключ к успеху!
+            String payload;
+            try (InputStream is = request.getInputStream()) {
+                payload = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            }
 
-            System.out.println("✅ JSON parsed!");
+            System.out.println("🚨 WEBHOOK RAW: " + payload.substring(0, 400));
 
-            String type = root.path("type").asText();
-            System.out.println("📦 Event type: " + type);
+            // ★ ТВОЙ STRIPE_WEBHOOK_SECRET из Railway
+            String webhookSecret = System.getenv("STRIPE_WEBHOOK_SECRET");
+            System.out.println("🔑 Secret loaded: " + (webhookSecret != null ? "YES" : "NO"));
 
-            if ("checkout.session.completed".equals(type)) {
-                System.out.println("🎯 CHECKOUT COMPLETED!");
+            // ★ ПРОВЕРЯЕМ SIGNATURE
+            Event event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
+            System.out.println("✅ Signature OK! Event: " + event.getType());
 
-                JsonNode metadata = root.path("data").path("object").path("metadata");
-                String courseId = metadata.path("courseId").asText("NULL");
-                String userEmail = metadata.path("userEmail").asText("NULL");
+            if ("checkout.session.completed".equals(event.getType())) {
+                Session session = event.getDataObjectDeserializer()
+                        .getObject()
+                        .map(s -> (Session) s)
+                        .orElse(null);
 
-                System.out.println("👤 User email: '" + userEmail + "'");
-                System.out.println("📚 Course ID: '" + courseId + "'");
+                if (session != null) {
+                    String courseId = session.getMetadata().get("courseId");
+                    String userEmail = session.getMetadata().get("userEmail");
 
-                // ★ СОЗДАЁМ ПОДПИСКУ
-                if (!"NULL".equals(courseId) && !"NULL".equals(userEmail)) {
-                    Long courseIdLong = Long.parseLong(courseId);
+                    System.out.println("📦 courseId='" + courseId + "'");
+                    System.out.println("👤 userEmail='" + userEmail + "'");
 
-                    User user = userRepository.findByEmail(userEmail).orElse(null);
-                    System.out.println("🔍 User found: " + (user != null));
+                    if (courseId != null && userEmail != null) {
+                        Long cid = Long.parseLong(courseId);
+                        User user = userRepository.findByEmail(userEmail).orElse(null);
+                        Course course = courseRepository.findById(cid).orElse(null);
 
-                    Course course = courseRepository.findById(courseIdLong).orElse(null);
-                    System.out.println("🔍 Course found: " + (course != null));
+                        System.out.println("🔍 User found: " + (user != null));
+                        System.out.println("🔍 Course found: " + (course != null));
 
-                    if (user != null && course != null) {
-                        Subscription sub = new Subscription();
-                        sub.setUser(user);
-                        sub.setCourse(course);
-                        sub.setStatus("ACTIVE");
-                        sub.setPurchaseDate(LocalDateTime.now());
-
-                        subscriptionRepository.saveAndFlush(sub);
-                        System.out.println("✅✅✅ ПОДПИСКА СОЗДАНА! ID=" + sub.getId());
+                        if (user != null && course != null) {
+                            Subscription sub = new Subscription();
+                            sub.setUser(user);
+                            sub.setCourse(course);
+                            sub.setStatus("ACTIVE");
+                            sub.setPurchaseDate(LocalDateTime.now());
+                            subscriptionRepository.saveAndFlush(sub);
+                            System.out.println("✅✅✅ ПОДПИСКА СОЗДАНА! ID=" + sub.getId());
+                        }
                     }
                 }
             }
 
-            System.out.println("🏁 WEBHOOK УСПЕШНО!");
             return ResponseEntity.ok("OK");
 
+        } catch (SignatureVerificationException e) {
+            System.out.println("💥 SIGNATURE FAILED!");
+            return ResponseEntity.status(400).body("Signature failed");
         } catch (Exception e) {
-            System.out.println("💥 ОШИБКА: " + e.getMessage());
+            System.out.println("💥 ERROR: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.ok("OK");
         }
     }
-
 }

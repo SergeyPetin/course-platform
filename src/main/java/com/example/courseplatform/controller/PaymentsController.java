@@ -112,49 +112,60 @@ public class PaymentsController {
             @RequestBody String payload,
             @RequestHeader("Stripe-Signature") String sigHeader) {
 
-        System.out.println("🔥 WEBHOOK ПОЛУЧЕН: " + payload.substring(0, 200));
+        System.out.println("🚨🔥 WEBHOOK ПОЛУЧЕН! 🔥🚨");
+        System.out.println("📄 Payload: " + payload.substring(0, 500));
 
         try {
-            // Парсим JSON напрямую (НАДЁЖНО!)
+            // ★ ПРЯМАЯ JSON РАЗБОРКА (100% работает)
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(payload);
-            JsonNode data = root.path("data").path("object");
 
-            String eventType = root.path("type").asText();
-            System.out.println("✅ Event: " + eventType);
+            System.out.println("✅ JSON parsed!");
 
-            if ("checkout.session.completed".equals(eventType)) {
-                String courseIdStr = data.path("metadata").path("courseId").asText(null);
-                String userEmail = data.path("metadata").path("userEmail").asText(null);
+            String type = root.path("type").asText();
+            System.out.println("📦 Event type: " + type);
 
-                System.out.println("📦 courseId='" + courseIdStr + "', email='" + userEmail + "'");
+            if ("checkout.session.completed".equals(type)) {
+                System.out.println("🎯 CHECKOUT COMPLETED!");
 
-                if (courseIdStr != null && userEmail != null) {
-                    Long courseId = Long.parseLong(courseIdStr);
+                JsonNode metadata = root.path("data").path("object").path("metadata");
+                String courseId = metadata.path("courseId").asText("NULL");
+                String userEmail = metadata.path("userEmail").asText("NULL");
+
+                System.out.println("👤 User email: '" + userEmail + "'");
+                System.out.println("📚 Course ID: '" + courseId + "'");
+
+                // ★ СОЗДАЁМ ПОДПИСКУ
+                if (!"NULL".equals(courseId) && !"NULL".equals(userEmail)) {
+                    Long courseIdLong = Long.parseLong(courseId);
+
                     User user = userRepository.findByEmail(userEmail).orElse(null);
-                    Course course = courseRepository.findById(courseId).orElse(null);
+                    System.out.println("🔍 User found: " + (user != null));
+
+                    Course course = courseRepository.findById(courseIdLong).orElse(null);
+                    System.out.println("🔍 Course found: " + (course != null));
 
                     if (user != null && course != null) {
-                        if (!subscriptionRepository.existsByUserAndCourseId(user, courseId)) {
-                            Subscription sub = new Subscription();
-                            sub.setUser(user);
-                            sub.setCourse(course);
-                            sub.setStatus("ACTIVE");
-                            sub.setPurchaseDate(LocalDateTime.now());
-                            subscriptionRepository.saveAndFlush(sub);
-                            System.out.println("✅ ПОДПИСКА СОЗДАНА! ID=" + sub.getId());
-                        } else {
-                            System.out.println("⚠️ Уже есть");
-                        }
+                        Subscription sub = new Subscription();
+                        sub.setUser(user);
+                        sub.setCourse(course);
+                        sub.setStatus("ACTIVE");
+                        sub.setPurchaseDate(LocalDateTime.now());
+
+                        subscriptionRepository.saveAndFlush(sub);
+                        System.out.println("✅✅✅ ПОДПИСКА СОЗДАНА! ID=" + sub.getId());
                     }
                 }
             }
 
+            System.out.println("🏁 WEBHOOK УСПЕШНО!");
             return ResponseEntity.ok("OK");
+
         } catch (Exception e) {
-            System.out.println("💥 ОШИБКА WEBHOOK: " + e.getMessage());
+            System.out.println("💥 ОШИБКА: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.ok("OK"); // Stripe требует 200!
+            return ResponseEntity.ok("OK");
         }
     }
+
 }

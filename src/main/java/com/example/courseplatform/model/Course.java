@@ -42,6 +42,7 @@ public class Course {
 
     @ManyToOne
     @JoinColumn(name = "author_id", nullable = false)
+    @JsonIgnore
     private User author;
 
     @Column(nullable = false)

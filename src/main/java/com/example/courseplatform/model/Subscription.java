@@ -22,6 +22,7 @@ public class Subscription {
 
     @ManyToOne
     @JoinColumn(name = "course_id", nullable = false)
+    @JsonIgnore
     private Course course;
 
     @Column(nullable = false)

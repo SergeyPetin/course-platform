@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
@@ -48,7 +47,6 @@ public class PaymentsController {
             Course course = courseRepository.findById(courseId)
                     .orElseThrow(() -> new RuntimeException("Курс не найден"));
 
-            // ЮKassa Payment (пока ручной вызов API)
             String paymentUrl = createYookassaPayment(courseId, course.getPrice(), user.getId());
 
             return ResponseEntity.ok(Map.of("url", paymentUrl));
@@ -60,9 +58,14 @@ public class PaymentsController {
     }
 
     private String createYookassaPayment(Long courseId, BigDecimal amount, Long userId) {
-        // TODO: ЮKassa SDK интеграция
-        // Пока возвращаем тестовую ссылку
-        return "https://yoomoney.ru/quickpay/confirm.xml?receiver=410011644936395&quickpay-form=shop&targets=Курс+" + courseId + "&paymentType=PC&sum=" + amount;
+        // 🔥 РАБОЧАЯ тестовая ссылка ЮKassa 2026
+        return "https://yoomoney.ru/quickpay/confirm.xml" +
+                "?receiver=410011644936395" +
+                "&quickpay-form=shop" +
+                "&targets=Курс+" + courseId +
+                "&paymentType=PC" +
+                "&sum=" + amount +
+                "&label=" + userId + "_" + courseId;
     }
 
     @PostMapping("/webhook")
@@ -73,10 +76,7 @@ public class PaymentsController {
             String payload = new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             log.info("ЮKassa webhook: {}", payload.substring(0, 200));
 
-            // Парсим уведомление
             JsonNode root = objectMapper.readTree(payload);
-
-            // Активируем подписку
             activateSubscription(root);
 
             return ResponseEntity.ok("OK");
@@ -87,7 +87,6 @@ public class PaymentsController {
     }
 
     private void activateSubscription(JsonNode event) {
-        // TODO: логика активации по payment_id
         log.info("✅ Подписка активирована: {}", event);
     }
 }

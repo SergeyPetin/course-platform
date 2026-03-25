@@ -24,9 +24,6 @@ public class PaymentsController {
     @Value("${yookassa.shop-id}")
     private String shopId;
 
-    @Value("${yookassa.secret-key}")
-    private String secretKey;
-
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
 
@@ -44,34 +41,40 @@ public class PaymentsController {
             Course course = courseRepository.findById(courseId)
                     .orElseThrow(() -> new IllegalArgumentException("Course not found"));
 
-            String paymentUrl = createPaymentUrl(courseId, course.getPrice(), user.getId());
+            String paymentUrl = createSimplePayUrl(courseId, course.getPrice(), user.getId(), course.getTitle());
 
-            log.info("✅ Payment URL: {} -> {}", user.getId(), paymentUrl);
+            log.info("Yookassa SimplePay created: {}", paymentUrl);
             return ResponseEntity.ok(Map.of("url", paymentUrl));
 
         } catch (IllegalArgumentException e) {
+            log.warn("Payment validation error: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            log.error("Payment failed", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Payment unavailable"));
+            log.error("Yookassa payment failed", e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "Yookassa service unavailable"));
         }
     }
 
-    private String createPaymentUrl(Long courseId, BigDecimal amount, Long userId) {
+    private String createSimplePayUrl(Long courseId, BigDecimal price, Long userId, String title) {
         try {
             String label = userId + "_" + courseId;
-            String successUrl = URLEncoder.encode("https://front-production-c924.up.railway.app", StandardCharsets.UTF_8.toString());
+            String amount = price.toString();  // BigDecimal → String
+            String description = URLEncoder.encode("Course: " + title, StandardCharsets.UTF_8);
+            String successUrl = URLEncoder.encode("https://front-production-c924.up.railway.app/courses/" + courseId, StandardCharsets.UTF_8);
 
-            // 🔥 ФОРМА ОПЛАТЫ ДЛЯ ПОКУПАТЕЛЯ (ЮMoney Quickpay)
-            return String.format(
-                    "https://yoomoney.ru/quickpay/confirm.xml?" +
-                            "receiver=410011644936395&quickpay-form=shop&targets=Курс%%20%d&paymentType=PC&sum=%s&label=%s&successURL=%s",
-                    courseId, amount, label, successUrl
-            );
+            // 🔥 ЮKassa SimplePay Форма оплаты
+            return "https://yookassa.ru/simplepay/confirm.xml?" +
+                    "shopId=" + shopId +
+                    "&scid=course_" + courseId +
+                    "&sum=" + amount +
+                    "&targets=" + description +
+                    "&paymentType=PC" +
+                    "&label=" + label +
+                    "&successURL=" + successUrl;
         } catch (Exception e) {
-            log.error("URL generation failed", e);
-            return "https://yoomoney.ru/quickpay/confirm.xml?receiver=410011644936395&quickpay-form=shop&targets=Тест";
+            log.error("SimplePay URL failed", e);
+            return "https://yookassa.ru/simplepay/confirm.xml?shopId=" + shopId;
         }
     }
 }

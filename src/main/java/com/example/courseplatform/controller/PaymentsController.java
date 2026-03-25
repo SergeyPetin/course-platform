@@ -11,6 +11,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @RestController
@@ -42,21 +44,34 @@ public class PaymentsController {
             Course course = courseRepository.findById(courseId)
                     .orElseThrow(() -> new IllegalArgumentException("Course not found"));
 
-            // ТЕМП: возвращаем заглушку ЮKassa
-            String paymentUrl = String.format(
-                    "https://yookassa.ru/my/development/test-payments?shopId=%s&course=%d",
-                    shopId, courseId
-            );
+            String paymentUrl = createPaymentUrl(courseId, course.getPrice(), user.getId());
 
-            log.info("Payment URL created: {} -> {}", user.getId(), paymentUrl);
+            log.info("✅ Payment URL: {} -> {}", user.getId(), paymentUrl);
             return ResponseEntity.ok(Map.of("url", paymentUrl));
 
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            log.error("Payment creation failed", e);
+            log.error("Payment failed", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Payment service unavailable"));
+                    .body(Map.of("error", "Payment unavailable"));
+        }
+    }
+
+    private String createPaymentUrl(Long courseId, BigDecimal amount, Long userId) {
+        try {
+            String label = userId + "_" + courseId;
+            String successUrl = URLEncoder.encode("https://front-production-c924.up.railway.app", StandardCharsets.UTF_8.toString());
+
+            // 🔥 ФОРМА ОПЛАТЫ ДЛЯ ПОКУПАТЕЛЯ (ЮMoney Quickpay)
+            return String.format(
+                    "https://yoomoney.ru/quickpay/confirm.xml?" +
+                            "receiver=410011644936395&quickpay-form=shop&targets=Курс%%20%d&paymentType=PC&sum=%s&label=%s&successURL=%s",
+                    courseId, amount, label, successUrl
+            );
+        } catch (Exception e) {
+            log.error("URL generation failed", e);
+            return "https://yoomoney.ru/quickpay/confirm.xml?receiver=410011644936395&quickpay-form=shop&targets=Тест";
         }
     }
 }

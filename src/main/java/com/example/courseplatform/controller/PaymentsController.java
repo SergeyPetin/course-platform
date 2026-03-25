@@ -58,23 +58,37 @@ public class PaymentsController {
         }
     }
 
-    private String createYookassaPayment(Long courseId, BigDecimal amount, Long userId) {
-        try {
-            String label = userId + "_" + courseId;
-            String successUrl = URLEncoder.encode("https://front-production-c924.up.railway.app/courses/" + courseId, StandardCharsets.UTF_8.toString());
+    private String createYookassaPayment(Long courseId, BigDecimal amount, Long userId) throws Exception {
+        String idempotenceKey = userId + "_" + courseId + "_" + System.currentTimeMillis();
+        String auth = shopId + ":" + secretKey;
+        String base64Auth = java.util.Base64.getEncoder().encodeToString(auth.getBytes());
 
-            return "https://yoomoney.ru/quickpay/confirm.xml" +
-                    "?receiver=410011644936395" +
-                    "&quickpay-form=shop" +
-                    "&targets=Курс+" + courseId +
-                    "&paymentType=PC" +
-                    "&sum=" + amount +
-                    "&label=" + label +
-                    "&successURL=" + successUrl;
-        } catch (Exception e) {
-            log.error("Quickpay URL error", e);
-            return "https://yoomoney.ru/quickpay/confirm.xml?receiver=410011644936395&quickpay-form=shop&targets=Курс+" + courseId + "&paymentType=PC&sum=" + amount;
-        }
+        String json = """
+    {
+        "amount": {"value": "%s", "currency": "RUB"},
+        "confirmation": {"type": "redirect", "return_url": "https://front-production-c924.up.railway.app/courses/%d"},
+        "capture": true,
+        "description": "Курс #%d",
+        "metadata": {"userId": "%d", "courseId": "%d"}
+    }
+    """.formatted(amount, courseId, courseId, userId, courseId);
+
+        java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
+        java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("https://api.yookassa.ru/v3/payments"))
+                .header("Authorization", "Basic " + base64Auth)
+                .header("Idempotence-Key", idempotenceKey)
+                .header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(json))
+                .build();
+
+        java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+
+        com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(response.body());
+        String confirmationUrl = node.path("confirmation").path("confirmation_url").asText();
+
+        log.info("✅ ЮKassa API success: {}", confirmationUrl);
+        return confirmationUrl;
     }
 
     @PostMapping("/webhook")

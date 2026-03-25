@@ -1,6 +1,7 @@
 package com.example.courseplatform.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -8,6 +9,7 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
+@JsonIgnoreProperties({"course", "user.subscriptions"})
 @Table(name = "subscriptions")
 public class Subscription {
 

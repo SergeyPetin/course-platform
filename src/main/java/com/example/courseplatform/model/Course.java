@@ -1,6 +1,7 @@
 package com.example.courseplatform.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -14,6 +15,7 @@ import java.util.List;
 
 @Entity
 @Data
+@JsonIgnoreProperties({"lessons", "subscriptions", "author.courses"})
 @Table(name = "courses")
 public class Course {
 

@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
@@ -58,23 +59,29 @@ public class PaymentsController {
     }
 
     private String createYookassaPayment(Long courseId, BigDecimal amount, Long userId) {
-        // 🔥 РАБОЧАЯ тестовая ссылка ЮKassa 2026
-        return "https://yoomoney.ru/quickpay/confirm.xml" +
-                "?receiver=410011644936395" +
-                "&quickpay-form=shop" +
-                "&targets=Курс+" + courseId +
-                "&paymentType=PC" +
-                "&sum=" + amount +
-                "&label=" + userId + "_" + courseId;
+        try {
+            String label = userId + "_" + courseId;
+            String successUrl = URLEncoder.encode("https://front-production-c924.up.railway.app/courses/" + courseId, StandardCharsets.UTF_8.toString());
+
+            return "https://yoomoney.ru/quickpay/confirm.xml" +
+                    "?receiver=410011644936395" +
+                    "&quickpay-form=shop" +
+                    "&targets=Курс+" + courseId +
+                    "&paymentType=PC" +
+                    "&sum=" + amount +
+                    "&label=" + label +
+                    "&successURL=" + successUrl;
+        } catch (Exception e) {
+            log.error("Quickpay URL error", e);
+            return "https://yoomoney.ru/quickpay/confirm.xml?receiver=410011644936395&quickpay-form=shop&targets=Курс+" + courseId + "&paymentType=PC&sum=" + amount;
+        }
     }
 
     @PostMapping("/webhook")
-    public ResponseEntity<String> handleYookassaWebhook(
-            HttpServletRequest request
-    ) {
+    public ResponseEntity<String> handleYookassaWebhook(HttpServletRequest request) {
         try {
             String payload = new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            log.info("ЮKassa webhook: {}", payload.substring(0, 200));
+            log.info("🔥 ЮKassa webhook: {}", payload.substring(0, 200));
 
             JsonNode root = objectMapper.readTree(payload);
             activateSubscription(root);
@@ -91,12 +98,10 @@ public class PaymentsController {
             String paymentId = event.path("object").path("id").asText();
             String status = event.path("object").path("status").asText();
 
-            if ("succeeded".equals(status)) {
-                // TODO: найди по label=userId_courseId и активируй
-                log.info("✅ Реальная активация подписки: paymentId={}", paymentId);
-            }
+            log.info("✅ Webhook paymentId={} status={}", paymentId, status);
+            // TODO: парсинг label → создание Subscription
         } catch (Exception e) {
-            log.error("Webhook activation failed", e);
+            log.error("Webhook parse failed", e);
         }
     }
 }

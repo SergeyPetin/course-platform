@@ -87,6 +87,16 @@ public class PaymentsController {
     }
 
     private void activateSubscription(JsonNode event) {
-        log.info("✅ Подписка активирована: {}", event);
+        try {
+            String paymentId = event.path("object").path("id").asText();
+            String status = event.path("object").path("status").asText();
+
+            if ("succeeded".equals(status)) {
+                // TODO: найди по label=userId_courseId и активируй
+                log.info("✅ Реальная активация подписки: paymentId={}", paymentId);
+            }
+        } catch (Exception e) {
+            log.error("Webhook activation failed", e);
+        }
     }
 }

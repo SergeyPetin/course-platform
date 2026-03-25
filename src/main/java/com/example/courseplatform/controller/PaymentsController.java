@@ -26,21 +26,19 @@ public class PaymentsController {
             Authentication auth
     ) {
         try {
-            // 🔥 МИНИМАЛЬНО! Только проверка + статическая ссылка
             String email = auth.getName();
             Long courseId = Long.valueOf(request.get("courseId").toString());
 
-            log.info("Payment requested: user={}, course={}", email, courseId);
+            log.info("✅ Payment OK: user={}, course={}", email, courseId);
 
-            // 🔥 ТЕСТОВАЯ ФОРМА ЮKassa (работает!)
-            String testPaymentUrl = "https://yookassa.ru/developers/payment-acceptance/testing-and-going-live/testing";
+            // 🔥 ТЕСТОВАЯ ФОРМА КАРТ из документации!
+            String paymentUrl = "https://yoomoney.ru/api-pages/v2/payment-confirm/epl?orderId=test_" + courseId;
 
-            return ResponseEntity.ok(Map.of("url", testPaymentUrl));
+            return ResponseEntity.ok(Map.of("url", paymentUrl));
 
         } catch (Exception e) {
             log.error("Payment error", e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", "Payment failed"));
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 }

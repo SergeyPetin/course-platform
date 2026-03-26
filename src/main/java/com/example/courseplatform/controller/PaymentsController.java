@@ -38,44 +38,33 @@ public class PaymentsController {
     private final ObjectMapper objectMapper;
 
     @PostMapping("/create")
-    public ResponseEntity<?> createPayment(
-            @RequestBody Map<String, Object> request,
-            Authentication auth
-    ) {
+    public ResponseEntity<?> createPayment(@RequestBody Map<String, Object> request, Authentication auth) {
+        log.info("🚀 1. START: request={}, auth={}", request, auth != null ? auth.getName() : "NULL");
+
         try {
-            log.info("Payment request: courseId={}, user={}", request.get("courseId"), auth.getName());
+            String email = auth != null ? auth.getName() : "NO_AUTH";
+            log.info("🚀 2. EMAIL: {}", email);
 
-            // Безопасная проверка JWT
-            if (auth == null || !auth.isAuthenticated()) {
-                return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
-            }
-
-            String email = auth.getName();
             Long courseId = Long.valueOf(request.get("courseId").toString());
+            log.info("🚀 3. COURSE_ID: {}", courseId);
 
-            log.info("Finding user: {}, course: {}", email, courseId);
-
-            // Безопасный поиск
             User user = userRepository.findByEmail(email).orElse(null);
-            if (user == null) {
-                log.warn("User not found: {}", email);
-                return ResponseEntity.badRequest().body(Map.of("error", "User not found"));
-            }
+            log.info("🚀 4. USER: {}", user != null ? user.getId() : "NULL");
 
             Course course = courseRepository.findById(courseId).orElse(null);
-            if (course == null) {
-                log.warn("Course not found: {}", courseId);
-                return ResponseEntity.badRequest().body(Map.of("error", "Course not found"));
-            }
+            log.info("🚀 5. COURSE: {}", course != null ? course.getId() : "NULL");
 
-            String paymentUrl = createYookassaPayment(courseId, course.getPrice(), user.getId());
-            log.info("✅ SUCCESS URL: {}", paymentUrl);
+            if (user == null) return ResponseEntity.badRequest().body(Map.of("error", "User NULL"));
+            if (course == null) return ResponseEntity.badRequest().body(Map.of("error", "Course NULL"));
 
-            return ResponseEntity.ok(Map.of("url", paymentUrl));
+            String url = createYookassaPayment(courseId, course.getPrice(), user.getId());
+            log.info("🚀 6. YOOKASSA_URL: {}", url);
+
+            return ResponseEntity.ok(Map.of("url", url));
 
         } catch (Exception e) {
-            log.error("Payment FAILED: {}", e.getMessage(), e);
-            return ResponseEntity.status(503).body(Map.of("error", "Payment service error: " + e.getMessage()));
+            log.error("💥 CRASH LINE: {}", e.getMessage(), e);
+            return ResponseEntity.status(503).body(Map.of("error", e.getClass() + ": " + e.getMessage()));
         }
     }
 

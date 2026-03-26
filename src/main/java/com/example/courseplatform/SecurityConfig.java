@@ -39,6 +39,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/health",
                                 "/payments/stripe-webhook",
+                                "/payments/yookassa-webhook",
                                 "/auth/login",
                                 "/auth/register",
                                 "/auth/**",

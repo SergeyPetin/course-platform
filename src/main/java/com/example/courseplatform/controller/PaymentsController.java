@@ -38,34 +38,13 @@ public class PaymentsController {
     private final ObjectMapper objectMapper;
 
     @PostMapping("/create")
-    public ResponseEntity<?> createPayment(@RequestBody Map<String, Object> request, Authentication auth) {
-        log.info("🚀 1. START: request={}, auth={}", request, auth != null ? auth.getName() : "NULL");
+    public ResponseEntity<Map<String, String>> createPayment(@RequestBody Map<String, Object> request, Authentication auth) {
+        log.info("🧪 HARDCODE TEST START");
 
-        try {
-            String email = auth != null ? auth.getName() : "NO_AUTH";
-            log.info("🚀 2. EMAIL: {}", email);
+        String testUrl = "https://yoomoney.ru/checkout/payments/v2/contract?orderId=TEST_COURSE_13";
+        log.info("🧪 HARDCODE URL: {}", testUrl);
 
-            Long courseId = Long.valueOf(request.get("courseId").toString());
-            log.info("🚀 3. COURSE_ID: {}", courseId);
-
-            User user = userRepository.findByEmail(email).orElse(null);
-            log.info("🚀 4. USER: {}", user != null ? user.getId() : "NULL");
-
-            Course course = courseRepository.findById(courseId).orElse(null);
-            log.info("🚀 5. COURSE: {}", course != null ? course.getId() : "NULL");
-
-            if (user == null) return ResponseEntity.badRequest().body(Map.of("error", "User NULL"));
-            if (course == null) return ResponseEntity.badRequest().body(Map.of("error", "Course NULL"));
-
-            String url = createYookassaPayment(courseId, course.getPrice(), user.getId());
-            log.info("🚀 6. YOOKASSA_URL: {}", url);
-
-            return ResponseEntity.ok(Map.of("url", url));
-
-        } catch (Exception e) {
-            log.error("💥 CRASH LINE: {}", e.getMessage(), e);
-            return ResponseEntity.status(503).body(Map.of("error", e.getClass() + ": " + e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of("url", testUrl));
     }
 
     private String createYookassaPayment(Long courseId, BigDecimal amount, Long userId) throws Exception {

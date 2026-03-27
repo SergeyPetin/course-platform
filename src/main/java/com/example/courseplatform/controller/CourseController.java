@@ -1,23 +1,26 @@
 package com.example.courseplatform.controller;
 
+import com.example.courseplatform.dto.CourseDto;
+import com.example.courseplatform.dto.LessonDto;
 import com.example.courseplatform.dto.UpdateCourseDto;
 import com.example.courseplatform.model.Course;
 import com.example.courseplatform.model.Lesson;
 import com.example.courseplatform.model.User;
 import com.example.courseplatform.repository.CourseRepository;
 import com.example.courseplatform.repository.LessonRepository;
+import com.example.courseplatform.repository.SubscriptionRepository;
 import com.example.courseplatform.repository.UserRepository;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,28 +38,61 @@ public class CourseController {
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
     private final LessonRepository lessonRepository;
+    private final SubscriptionRepository subscriptionRepository;
     private final Logger logger =
             LoggerFactory.getLogger(CourseController.class);
 
-    public CourseController(CourseRepository courseRepository, UserRepository userRepository, LessonRepository lessonRepository) {
+    public CourseController(CourseRepository courseRepository, UserRepository userRepository,
+                            SubscriptionRepository subscriptionRepository, LessonRepository lessonRepository) {
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
         this.lessonRepository = lessonRepository;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     @GetMapping
-    public Page<Course> getAllCourses(
+    public Page<CourseDto> getAllCourses(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "title") String sortBy
     ) {
-        return courseRepository.findAll(PageRequest.of(page, size, Sort.by(sortBy)));
+        Page<Course> coursesPage =
+                courseRepository.findAll(PageRequest.of(page, size, Sort.by(sortBy)));
+
+        return coursesPage.map(course -> {
+            User author = course.getAuthor();
+            return new CourseDto(
+                    course.getId(),
+                    course.getTitle(),
+                    course.getDescription(),
+                    course.getPrice(),
+                    course.getCoverImageUrl(),
+                    course.getPreviewVideoUrl(),
+                    author != null ? author.getId() : null,
+                    author != null ? author.getFullName() : null,
+                    author != null ? author.getEmail() : null
+            );
+        });
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Course> getCourseById(@PathVariable Long id) {
+    public ResponseEntity<CourseDto> getCourseById(@PathVariable Long id) {
         return courseRepository.findById(id)
-                .map(course -> ResponseEntity.ok(course))
+                .map(course -> {
+                    User author = course.getAuthor();
+                    CourseDto dto = new CourseDto(
+                            course.getId(),
+                            course.getTitle(),
+                            course.getDescription(),
+                            course.getPrice(),
+                            course.getCoverImageUrl(),
+                            course.getPreviewVideoUrl(),
+                            author != null ? author.getId() : null,
+                            author != null ? author.getFullName() : null,
+                            author != null ? author.getEmail() : null
+                    );
+                    return ResponseEntity.ok(dto);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -112,12 +148,24 @@ public class CourseController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCourse(@PathVariable Long id) {
-        if (courseRepository.existsById(id)) {
+    public ResponseEntity<?> deleteCourse(@PathVariable Long id) {
+        try {
+            boolean hasSubs = subscriptionRepository.existsByCourseId(id);
+            if (hasSubs) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body("Нельзя удалить курс: есть активные подписки");
+            }
+
+            if (!courseRepository.existsById(id)) {
+                return ResponseEntity.notFound().build();
+            }
+
             courseRepository.deleteById(id);
             return ResponseEntity.noContent().build();
+        } catch (DataIntegrityViolationException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Нельзя удалить курс: есть связанные записи (подписки/уроки)");
         }
-        return ResponseEntity.notFound().build();
     }
 
     @PostMapping("/{courseId}/lessons")
@@ -166,9 +214,21 @@ public class CourseController {
     }
 
     @GetMapping("/{courseId}/lessons")
-    public ResponseEntity<List<Lesson>> getCourseLessons(@PathVariable Long courseId) {
-        List<Lesson> lessons = lessonRepository.findByCourse_IdOrderByOrderNumberAsc(courseId);
-        return ResponseEntity.ok(lessons);
+    public ResponseEntity<List<LessonDto>> getCourseLessons(@PathVariable Long courseId) {
+        List<Lesson> lessons =
+                lessonRepository.findByCourse_IdOrderByOrderNumberAsc(courseId);
+
+        List<LessonDto> dtoList = lessons.stream()
+                .map(l -> new LessonDto(
+                        l.getId(),
+                        l.getTitle(),
+                        l.getVideoId(),
+                        l.getOrderNumber(),
+                        l.getDurationMinutes()
+                ))
+                .toList();
+
+        return ResponseEntity.ok(dtoList);
     }
 
     @PutMapping("/{courseId}/lessons/{lessonId}")
@@ -233,7 +293,6 @@ public class CourseController {
         List<Course> courses = courseRepository.findByAuthorEmail(email);
         return ResponseEntity.ok(courses);
     }
-
 }
 
 

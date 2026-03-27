@@ -1,5 +1,6 @@
 package com.example.courseplatform.controller;
 
+import com.example.courseplatform.dto.SubscriptionDto;
 import com.example.courseplatform.model.Course;
 import com.example.courseplatform.model.Subscription;
 import com.example.courseplatform.model.User;
@@ -11,11 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/subscriptions")
@@ -34,19 +31,21 @@ public class SubscriptionsController {
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, String>> subscribe(@RequestBody Map<String, String> request,
-                                                         Authentication authentication) {
+    public ResponseEntity<?> subscribe(@RequestBody java.util.Map<String, String> request,
+                                       Authentication authentication) {
         String email = authentication.getName();
-        User user = userRepository.findByEmail(email).orElseThrow(() ->
-                new RuntimeException("Пользователь не найден"));
+        User user = userRepository.findByEmail(email).orElseThrow(
+                () -> new RuntimeException("Пользователь не найден")
+        );
 
         Long courseId = Long.valueOf(request.get("courseId"));
-        Course course = courseRepository.findById(courseId).orElseThrow(() ->
-                new RuntimeException("Курс не найден"));
+        Course course = courseRepository.findById(courseId).orElseThrow(
+                () -> new RuntimeException("Курс не найден")
+        );
 
         if (subscriptionRepository.existsByUserAndCourseId(user, courseId)) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("Ошибка", "Уже подписан на этот курс"));
+                    .body(java.util.Map.of("error", "Уже подписан на этот курс"));
         }
 
         Subscription subscription = new Subscription();
@@ -56,39 +55,28 @@ public class SubscriptionsController {
         subscription.setPurchaseDate(LocalDateTime.now());
         subscriptionRepository.save(subscription);
 
-        return ResponseEntity.ok(Map.of("Сообщение", "Подписка оформлена"));
+        return ResponseEntity.ok(java.util.Map.of("message", "Подписка оформлена"));
     }
 
     @GetMapping("/my")
-    public ResponseEntity<List<Map<String, Object>>> mySubscriptions(Authentication auth) {
-        try {
-            String email = auth.getName();
-            User user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+    public ResponseEntity<List<SubscriptionDto>> mySubscriptions(Authentication auth) {
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-            List<Subscription> subscriptions = subscriptionRepository.findByUserAndStatus(user, "ACTIVE");
+        List<Subscription> subscriptions =
+                subscriptionRepository.findByUserAndStatus(user, "ACTIVE");
 
-            List<Map<String, Object>> result = subscriptions.stream()
-                    .map(sub -> {
-                        Map<String, Object> dto = new HashMap<>();
-                        dto.put("id", sub.getId());
-                        dto.put("status", sub.getStatus());
-                        dto.put("purchaseDate", sub.getPurchaseDate());
-                        dto.put("expiresAt", sub.getExpiresAt());
+        List<SubscriptionDto> dtoList = subscriptions.stream()
+                .map(sub -> new SubscriptionDto(
+                        sub.getId(),
+                        sub.getCourse() != null ? sub.getCourse().getId() : null,
+                        sub.getStatus(),
+                        sub.getPurchaseDate(),
+                        sub.getExpiresAt()
+                ))
+                .toList();
 
-                        if (sub.getCourse() != null) {
-                            dto.put("courseId", sub.getCourse().getId());
-                            dto.put("courseTitle", sub.getCourse().getTitle());
-                        }
-
-                        return dto;
-                    })
-                    .collect(Collectors.toList());
-
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            // log.error убрали — нет ошибок компиляции
-            return ResponseEntity.ok(new ArrayList<>());
-        }
+        return ResponseEntity.ok(dtoList);
     }
 }

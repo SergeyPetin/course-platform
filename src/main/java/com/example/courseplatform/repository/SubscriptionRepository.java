@@ -8,6 +8,7 @@ import java.util.List;
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
     List<Subscription> findByUser(User user);
     boolean existsByUserAndCourseId(User user, Long courseId);
+    boolean existsByCourseId(Long courseId);
 
     List<Subscription> findByUserAndStatus(User user, String status);
 }

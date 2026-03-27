@@ -1,7 +1,6 @@
 package com.example.courseplatform.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -15,7 +14,6 @@ import java.util.List;
 
 @Entity
 @Data
-@JsonIgnoreProperties({"lessons", "subscriptions", "author.courses"})
 @Table(name = "courses")
 public class Course {
 
@@ -42,15 +40,14 @@ public class Course {
     @Column(nullable = false)
     private BigDecimal price;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id", nullable = false)
-    @JsonIgnore
+    @JsonIgnore // наружу автора отдадим через DTO
     private User author;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    // ВАЖНО: не сериализуем lessons в JSON, чтобы не будить LAZY
     @JsonIgnore
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Lesson> lessons = new ArrayList<>();

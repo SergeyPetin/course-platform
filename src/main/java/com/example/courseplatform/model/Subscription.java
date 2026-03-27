@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@JsonIgnoreProperties({"course", "user.subscriptions"})
+@JsonIgnoreProperties({"user.subscriptions"}) // на будущее, если добавишь поле в User
 @Table(name = "subscriptions")
 public class Subscription {
 
@@ -17,12 +17,12 @@ public class Subscription {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @JsonIgnore
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
     @JsonIgnore
     private Course course;
@@ -34,6 +34,6 @@ public class Subscription {
     private LocalDateTime purchaseDate;
 
     private LocalDateTime expiresAt;
-    public Subscription() {}
 
+    public Subscription() {}
 }

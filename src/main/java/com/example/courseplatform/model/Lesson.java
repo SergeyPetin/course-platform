@@ -1,6 +1,6 @@
 package com.example.courseplatform.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -13,7 +13,7 @@ public class Lesson {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @JsonBackReference
+    @JsonIgnore // чтобы не было рекурсии Course <-> Lesson
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
@@ -31,5 +31,4 @@ public class Lesson {
     private Integer orderNumber;
 
     private int durationMinutes;
-
 }

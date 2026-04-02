@@ -74,7 +74,7 @@ public class PaymentsController {
             log.info("🚀 START payment: user={}, userId={}, courseId={}, amount={}",
                     email, user.getId(), courseId, amount);
 
-            String returnUrl = "https://front-production-c924.up.railway.app/courses/" + courseId;
+            String returnUrl = "https://front-production-7dff.up.railway.app/courses/" + courseId;
 
             String paymentUrl = createYookassaPayment(courseId, amount, user.getId(), returnUrl);
             log.info("✅ SUCCESS URL: {}", paymentUrl);
